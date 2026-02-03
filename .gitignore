@@ -10,3 +10,6 @@ xcuserdata/
 *.mode2v3
 *.perspectivev3
 *.swp
+android/.gradle/
+android/**/build/
+android/local.properties
