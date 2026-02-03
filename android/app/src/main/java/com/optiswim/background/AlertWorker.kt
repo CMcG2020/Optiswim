@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Room
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import androidx.core.content.ContextCompat
 import com.optiswim.data.local.AppDatabase
 import com.optiswim.data.model.SwimLocationEntity
 import com.optiswim.data.repository.ConditionsRepository
@@ -11,12 +12,17 @@ import com.optiswim.data.repository.PreferencesRepository
 import com.optiswim.data.remote.MarineApiService
 import com.optiswim.data.remote.WeatherApiService
 import com.optiswim.domain.ScoringService
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.tasks.await
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
 import retrofit2.converter.moshi.MoshiConverterFactory
+import android.Manifest
+import android.content.pm.PackageManager
 
 class AlertWorker(
     appContext: Context,
@@ -31,8 +37,14 @@ class AlertWorker(
             val conditionsRepo = createRepository()
             val preferences = PreferencesRepository(applicationContext)
             val level = preferences.swimmerLevel.first()
+            val useCurrentLocation = preferences.useCurrentLocationAlerts.first()
 
-            val location = getPreferredLocation() ?: DEFAULT_LOCATION
+            val deviceLocation = if (useCurrentLocation && hasLocationPermission()) {
+                getCurrentLocation()
+            } else {
+                null
+            }
+            val location = deviceLocation ?: getPreferredLocation() ?: DEFAULT_LOCATION
             val conditions = conditionsRepo.fetchConditions(location.latitude, location.longitude)
             val score = ScoringService.calculateScore(conditions, level)
 
@@ -94,6 +106,35 @@ class AlertWorker(
             locations.firstOrNull { it.isFavorite } ?: locations.firstOrNull()
         } finally {
             db.close()
+        }
+    }
+
+    private fun hasLocationPermission(): Boolean {
+        val fine = ContextCompat.checkSelfPermission(
+            applicationContext,
+            Manifest.permission.ACCESS_FINE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
+        val coarse = ContextCompat.checkSelfPermission(
+            applicationContext,
+            Manifest.permission.ACCESS_COARSE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
+        return fine || coarse
+    }
+
+    private suspend fun getCurrentLocation(): SwimLocationEntity? {
+        val client = LocationServices.getFusedLocationProviderClient(applicationContext)
+        return try {
+            val location = client.getCurrentLocation(Priority.PRIORITY_BALANCED_POWER_ACCURACY, null).await()
+            location?.let {
+                SwimLocationEntity(
+                    id = "device",
+                    name = "Current Location",
+                    latitude = it.latitude,
+                    longitude = it.longitude
+                )
+            }
+        } catch (_: Exception) {
+            null
         }
     }
 

@@ -23,6 +23,10 @@ class SettingsViewModel @Inject constructor(
         preferencesRepository.dailyAlertsEnabled
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
+    val useCurrentLocationAlerts: StateFlow<Boolean> =
+        preferencesRepository.useCurrentLocationAlerts
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
     fun updateLevel(level: SwimmerLevel) {
         viewModelScope.launch {
             preferencesRepository.setSwimmerLevel(level)
@@ -32,6 +36,12 @@ class SettingsViewModel @Inject constructor(
     fun setDailyAlerts(enabled: Boolean) {
         viewModelScope.launch {
             preferencesRepository.setDailyAlerts(enabled)
+        }
+    }
+
+    fun setUseCurrentLocationAlerts(enabled: Boolean) {
+        viewModelScope.launch {
+            preferencesRepository.setUseCurrentLocationAlerts(enabled)
         }
     }
 }

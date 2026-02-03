@@ -18,6 +18,7 @@ class PreferencesRepository @Inject constructor(
 ) {
     private val levelKey = stringPreferencesKey("swimmer_level")
     private val dailyAlertsKey = booleanPreferencesKey("daily_alerts")
+    private val currentLocationAlertsKey = booleanPreferencesKey("current_location_alerts")
 
     val swimmerLevel: Flow<SwimmerLevel> = context.dataStore.data.map { prefs ->
         val value = prefs[levelKey] ?: SwimmerLevel.INTERMEDIATE.name
@@ -26,6 +27,10 @@ class PreferencesRepository @Inject constructor(
 
     val dailyAlertsEnabled: Flow<Boolean> = context.dataStore.data.map { prefs ->
         prefs[dailyAlertsKey] ?: false
+    }
+
+    val useCurrentLocationAlerts: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[currentLocationAlertsKey] ?: false
     }
 
     suspend fun setSwimmerLevel(level: SwimmerLevel) {
@@ -37,6 +42,12 @@ class PreferencesRepository @Inject constructor(
     suspend fun setDailyAlerts(enabled: Boolean) {
         context.dataStore.edit { prefs ->
             prefs[dailyAlertsKey] = enabled
+        }
+    }
+
+    suspend fun setUseCurrentLocationAlerts(enabled: Boolean) {
+        context.dataStore.edit { prefs ->
+            prefs[currentLocationAlertsKey] = enabled
         }
     }
 }
