@@ -20,6 +20,12 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v3
 
+      - name: Install Gradle 8.7
+        run: |
+          curl -sSL https://services.gradle.org/distributions/gradle-8.7-bin.zip -o /tmp/gradle.zip
+          unzip -q /tmp/gradle.zip -d /tmp
+          echo "/tmp/gradle-8.7/bin" >> $GITHUB_PATH
+
       - name: Decode keystore
         run: |
           echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/keystore.jks
