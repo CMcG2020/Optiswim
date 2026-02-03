@@ -15,12 +15,12 @@ class ConditionsRepository @Inject constructor(
     private val marineApi: MarineApiService
 ) {
     suspend fun fetchConditions(lat: Double, lon: Double): MarineConditions {
-        val marine = marineApi.getHourly(lat, lon, days = 2)
+        val marine = runCatching { marineApi.getHourly(lat, lon, days = 2) }.getOrNull()
         val weatherCurrent = weatherApi.getCurrent(lat, lon)
         val weatherHourly = weatherApi.getHourly(lat, lon, days = 2)
 
-        val marineHourly = marine.hourly
-        val marineTimes = parseTimes(marineHourly?.time)
+        val marineHourly = marine?.hourly
+        val marineTimes = parseTimes(marineHourly?.time ?: weatherHourly.hourly?.time)
         val index = nearestIndex(marineTimes, LocalDateTime.now(ZoneOffset.UTC))
 
         val windSpeed = weatherCurrent.current?.windSpeed
@@ -71,17 +71,19 @@ class ConditionsRepository @Inject constructor(
     }
 
     suspend fun fetchForecast(lat: Double, lon: Double, days: Int): List<HourlyForecast> {
-        val marine = marineApi.getHourly(lat, lon, days = days)
+        val marine = runCatching { marineApi.getHourly(lat, lon, days = days) }.getOrNull()
         val weather = weatherApi.getHourly(lat, lon, days = days)
 
-        val marineHourly = marine.hourly
+        val marineHourly = marine?.hourly
         val weatherHourly = weather.hourly
 
-        val marineTimes = parseTimes(marineHourly?.time)
+        val marineTimes = parseTimes(marineHourly?.time ?: weatherHourly?.time)
+        val marineSize = marineHourly?.waveHeight?.size ?: Int.MAX_VALUE
+        val weatherSize = weatherHourly?.temperature?.size ?: 0
         val count = listOf(
             marineTimes.size,
-            marineHourly?.waveHeight?.size ?: 0,
-            weatherHourly?.temperature?.size ?: 0
+            marineSize,
+            weatherSize
         ).minOrNull() ?: 0
 
         val forecasts = mutableListOf<HourlyForecast>()
