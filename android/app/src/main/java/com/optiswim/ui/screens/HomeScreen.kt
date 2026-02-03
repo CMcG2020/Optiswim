@@ -119,40 +119,42 @@ fun HomeScreen(padding: PaddingValues, viewModel: HomeViewModel) {
             }
         } else if (state.error != null) {
             Text(text = state.error ?: "Error", color = MaterialTheme.colorScheme.error)
-        } else if (state.conditions != null) {
+        } else {
             val conditions = state.conditions
             val score = state.score
 
-            Card(
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text(text = "Current Conditions", style = MaterialTheme.typography.titleMedium)
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(text = "Wave Height: ${conditions.waveHeight} m")
-                    Text(text = "Wind: ${conditions.windSpeed} km/h")
-                    Text(text = "Water Temp: ${conditions.seaSurfaceTemperature} C")
-                    TideTrendRow(phase = conditions.tidePhase)
-                }
-            }
-
-            if (state.forecast.isNotEmpty()) {
-                ForecastChart(forecast = state.forecast)
-            }
-
-            if (score != null) {
+            if (conditions != null) {
                 Card(
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        Text(text = "Swim Score", style = MaterialTheme.typography.titleMedium)
+                        Text(text = "Current Conditions", style = MaterialTheme.typography.titleMedium)
                         Spacer(modifier = Modifier.height(8.dp))
-                        Text(text = "${score.value.toInt()}/100 - ${score.rating.label}")
-                        if (score.warnings.isNotEmpty()) {
+                        Text(text = "Wave Height: ${conditions.waveHeight} m")
+                        Text(text = "Wind: ${conditions.windSpeed} km/h")
+                        Text(text = "Water Temp: ${conditions.seaSurfaceTemperature} C")
+                        TideTrendRow(phase = conditions.tidePhase)
+                    }
+                }
+
+                if (state.forecast.isNotEmpty()) {
+                    ForecastChart(forecast = state.forecast)
+                }
+
+                if (score != null) {
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text(text = "Swim Score", style = MaterialTheme.typography.titleMedium)
                             Spacer(modifier = Modifier.height(8.dp))
-                            Text(text = "Warnings", style = MaterialTheme.typography.titleSmall)
-                            score.warnings.forEach { warning ->
-                                Text(text = "- $warning")
+                            Text(text = "${score.value.toInt()}/100 - ${score.rating.label}")
+                            if (score.warnings.isNotEmpty()) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(text = "Warnings", style = MaterialTheme.typography.titleSmall)
+                                score.warnings.forEach { warning ->
+                                    Text(text = "- $warning")
+                                }
                             }
                         }
                     }
@@ -185,6 +187,7 @@ private fun ForecastChart(forecast: List<HourlyForecast>) {
     val series = forecast.take(24).map { it.waveHeight }
     val maxValue = series.maxOrNull()?.takeIf { it > 0 } ?: 1.0
     val minValue = series.minOrNull() ?: 0.0
+    val lineColor = MaterialTheme.colorScheme.primary
 
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -203,7 +206,7 @@ private fun ForecastChart(forecast: List<HourlyForecast>) {
                     val x = stepX * i
                     val y = size.height - ((series[i] - minValue) / range * size.height).toFloat()
                     drawLine(
-                        color = MaterialTheme.colorScheme.primary,
+                        color = lineColor,
                         start = androidx.compose.ui.geometry.Offset(lastX, lastY),
                         end = androidx.compose.ui.geometry.Offset(x, y),
                         strokeWidth = 4f
