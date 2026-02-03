@@ -10,6 +10,27 @@ android {
     namespace = "com.optiswim"
     compileSdk = 34
 
+    val signingStoreFile = System.getenv("SIGNING_STORE_FILE")
+    val signingStorePassword = System.getenv("SIGNING_STORE_PASSWORD")
+    val signingKeyAlias = System.getenv("SIGNING_KEY_ALIAS")
+    val signingKeyPassword = System.getenv("SIGNING_KEY_PASSWORD")
+
+    if (
+        signingStoreFile != null &&
+        signingStorePassword != null &&
+        signingKeyAlias != null &&
+        signingKeyPassword != null
+    ) {
+        signingConfigs {
+            create("release") {
+                storeFile = file(signingStoreFile)
+                storePassword = signingStorePassword
+                keyAlias = signingKeyAlias
+                keyPassword = signingKeyPassword
+            }
+        }
+    }
+
     defaultConfig {
         applicationId = "com.optiswim"
         minSdk = 26
@@ -30,6 +51,9 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            if (signingStoreFile != null) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
 
