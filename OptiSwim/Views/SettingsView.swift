@@ -105,12 +105,21 @@ struct SettingsView: View {
                         Text("1.0.0")
                             .foregroundStyle(.secondary)
                     }
-                    
+
                     Link(destination: URL(string: "https://open-meteo.com")!) {
                         SettingsRow(
                             icon: "cloud",
                             iconColor: .blue,
                             title: "Weather Data",
+                            subtitle: "Powered by Open-Meteo"
+                        )
+                    }
+
+                    Link(destination: URL(string: "https://open-meteo.com")!) {
+                        SettingsRow(
+                            icon: "wave.3.forward",
+                            iconColor: .teal,
+                            title: "Marine Data",
                             subtitle: "Powered by Open-Meteo"
                         )
                     }

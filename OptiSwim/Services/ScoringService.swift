@@ -234,15 +234,16 @@ struct ScoringService {
     }
     
     private static func calculateTideScore(_ state: TideState, preference: TidePreference) -> Double {
+        let normalizedState: TideState = (state == .rising || state == .falling) ? .mid : state
         switch preference {
         case .any:
             return 1.0
         case .high:
-            return state == .high ? 1.0 : (state == .mid ? 0.7 : 0.5)
+            return normalizedState == .high ? 1.0 : (normalizedState == .mid ? 0.7 : 0.5)
         case .low:
-            return state == .low ? 1.0 : (state == .mid ? 0.7 : 0.5)
+            return normalizedState == .low ? 1.0 : (normalizedState == .mid ? 0.7 : 0.5)
         case .slackOrHigh:
-            return (state == .high || state == .mid) ? 1.0 : 0.6
+            return (normalizedState == .high || normalizedState == .mid) ? 1.0 : 0.6
         }
     }
     

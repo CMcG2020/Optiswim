@@ -18,10 +18,15 @@ struct MarineConditions: Codable {
     let uvIndex: Double
     let airTemperature: Double          // °C
     let precipitation: Double           // mm
+    let tidePhase: TideState?
+    let sourceUpdateTime: Date?
     
     var tideState: TideState {
-        // Approximate tide state from sea level
-        // This is a simplified heuristic - real tide data would be more accurate
+        if let tidePhase {
+            return tidePhase
+        }
+
+        // Approximate tide state from sea level (fallback)
         if seaLevel > 0.5 {
             return .high
         } else if seaLevel < -0.5 {
@@ -45,6 +50,25 @@ struct MarineConditions: Codable {
         let index = Int((windDirection + 11.25) / 22.5) % 16
         return directions[index]
     }
+
+    enum CodingKeys: String, CodingKey {
+        case timestamp
+        case waveHeight
+        case waveDirection
+        case wavePeriod
+        case swellHeight
+        case waterTemperature = "seaSurfaceTemperature"
+        case seaLevel = "seaLevelHeight"
+        case windSpeed
+        case windGusts
+        case windDirection
+        case weatherCode
+        case uvIndex
+        case airTemperature
+        case precipitation
+        case tidePhase
+        case sourceUpdateTime
+    }
 }
 
 // MARK: - Tide State
@@ -62,6 +86,24 @@ enum TideState: String, Codable {
         case .low: return "arrow.down.to.line"
         case .mid, .rising, .falling: return "arrow.left.arrow.right"
         }
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        let value = try container.decode(String.self).lowercased()
+        switch value {
+        case "high": self = .high
+        case "low": self = .low
+        case "rising": self = .rising
+        case "falling": self = .falling
+        case "mid": self = .mid
+        default: self = .mid
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(rawValue.lowercased())
     }
 }
 
