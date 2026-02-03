@@ -49,6 +49,11 @@ struct HomeView: View {
                     if let conditions = viewModel.currentConditions {
                         ConditionsGridView(conditions: conditions)
                     }
+
+                    // Forecast Chart
+                    if !viewModel.forecast.isEmpty {
+                        ForecastChartCard(forecast: viewModel.forecast)
+                    }
                     
                     // Warnings
                     if let score = viewModel.currentScore, !score.warnings.isEmpty {
@@ -413,9 +418,118 @@ struct ConditionsGridView: View {
                     color: .indigo
                 )
             }
+
+            TideTrendIndicator(state: conditions.tideState)
         }
         .padding()
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
+    }
+}
+
+// MARK: - Tide Trend Indicator
+
+struct TideTrendIndicator: View {
+    let state: TideState
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: icon)
+                .foregroundStyle(color)
+            Text("Tide Trend: \(label)")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private var label: String {
+        switch state {
+        case .rising: return "Rising"
+        case .falling: return "Falling"
+        case .high: return "High"
+        case .low: return "Low"
+        case .mid: return "Mid"
+        }
+    }
+
+    private var icon: String {
+        switch state {
+        case .rising: return "arrow.up.right"
+        case .falling: return "arrow.down.right"
+        case .high: return "arrow.up.to.line"
+        case .low: return "arrow.down.to.line"
+        case .mid: return "arrow.left.and.right"
+        }
+    }
+
+    private var color: Color {
+        switch state {
+        case .rising, .high: return .cyan
+        case .falling, .low: return .indigo
+        case .mid: return .gray
+        }
+    }
+}
+
+// MARK: - Forecast Chart
+
+struct ForecastChartCard: View {
+    let forecast: [HourlyForecast]
+
+    private var values: [Double] {
+        Array(forecast.prefix(24).map { $0.conditions.waveHeight })
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Next 24h Wave Height")
+                .font(.headline)
+
+            LineChartView(values: values, lineColor: .cyan)
+                .frame(height: 140)
+
+            if let maxValue = values.max(), let minValue = values.min() {
+                Text("Range: \(String(format: \"%.1f\", minValue))m - \(String(format: \"%.1f\", maxValue))m")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
+    }
+}
+
+struct LineChartView: View {
+    let values: [Double]
+    let lineColor: Color
+
+    var body: some View {
+        GeometryReader { geometry in
+            let width = geometry.size.width
+            let height = geometry.size.height
+            let maxValue = values.max() ?? 1
+            let minValue = values.min() ?? 0
+            let range = max(maxValue - minValue, 0.1)
+
+            Path { path in
+                guard values.count > 1 else { return }
+                for index in values.indices {
+                    let x = width * CGFloat(index) / CGFloat(values.count - 1)
+                    let normalized = (values[index] - minValue) / range
+                    let y = height - CGFloat(normalized) * height
+                    if index == 0 {
+                        path.move(to: CGPoint(x: x, y: y))
+                    } else {
+                        path.addLine(to: CGPoint(x: x, y: y))
+                    }
+                }
+            }
+            .stroke(lineColor, style: StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round))
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color.white.opacity(0.05))
+            )
+        }
     }
 }
 
