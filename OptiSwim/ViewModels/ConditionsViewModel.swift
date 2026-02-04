@@ -24,77 +24,116 @@ final class ConditionsViewModel {
     // MARK: - Fetch Conditions
     
     func fetchConditions(for location: SwimLocation, profile: UserProfile) async {
-        isLoading = true
-        errorMessage = nil
-        currentLocationName = location.name
-        
-        // Capture values for sendable closure
-        let lat = location.latitude
-        let lon = location.longitude
-        
-        do {
-            async let conditionsTask = apiService.fetchConditions(
-                latitude: lat,
-                longitude: lon
-            )
-            async let forecastTask = apiService.fetchForecast(
-                latitude: lat,
-                longitude: lon
-            )
-            
-            let (conditions, hourlyForecast) = try await (conditionsTask, forecastTask)
-            
-            self.currentConditions = conditions
-            self.forecast = hourlyForecast
-            self.currentScore = ScoringService.calculateScore(conditions: conditions, profile: profile)
-            self.optimalWindow = ScoringService.findOptimalWindow(forecast: hourlyForecast, profile: profile)
-            self.lastUpdated = Date()
-            self.isOffline = false
-            self.isLoading = false
-        } catch {
-            self.errorMessage = "Failed to fetch conditions: \(error.localizedDescription)"
-            self.isLoading = false
-        }
+        await fetchConditions(
+            latitude: location.latitude,
+            longitude: location.longitude,
+            profile: profile,
+            locationName: location.name
+        )
     }
     
     func fetchConditionsForCurrentLocation(profile: UserProfile) async {
         isLoading = true
         errorMessage = nil
+        defer { isLoading = false }
         
         do {
             let clLocation = try await LocationService.shared.getCurrentLocation()
-            let lat = clLocation.coordinate.latitude
-            let lon = clLocation.coordinate.longitude
-            
-            // Update location name asynchronously
             let name = await LocationService.shared.reverseGeocode(location: clLocation)
-            currentLocationName = name.isEmpty ? "Current Location" : name
+            let locationName = name.isEmpty ? "Current Location" : name
             
-            async let conditionsTask = apiService.fetchConditions(
-                latitude: lat,
-                longitude: lon
+            try await fetchConditionsInternal(
+                latitude: clLocation.coordinate.latitude,
+                longitude: clLocation.coordinate.longitude,
+                profile: profile,
+                locationName: locationName
             )
-            async let forecastTask = apiService.fetchForecast(
-                latitude: lat,
-                longitude: lon
-            )
-            
-            let (conditions, hourlyForecast) = try await (conditionsTask, forecastTask)
-            
-            self.currentConditions = conditions
-            self.forecast = hourlyForecast
-            self.currentScore = ScoringService.calculateScore(conditions: conditions, profile: profile)
-            self.optimalWindow = ScoringService.findOptimalWindow(forecast: hourlyForecast, profile: profile)
-            self.lastUpdated = Date()
-            self.isOffline = false
-            self.isLoading = false
         } catch {
-            self.errorMessage = "Failed to fetch conditions: \(error.localizedDescription)"
-            self.isLoading = false
+            errorMessage = "Failed to fetch conditions: \(error.localizedDescription)"
+        }
+    }
+    
+    func fetchConditionsForNearestBeach(profile: UserProfile) async {
+        isLoading = true
+        errorMessage = nil
+        defer { isLoading = false }
+
+        do {
+            let clLocation = try await LocationService.shared.getCurrentLocation()
+
+            if let nearestBeach = await LocationService.shared.findNearestBeach(near: clLocation) {
+                try await fetchConditionsInternal(
+                    latitude: nearestBeach.coordinate.latitude,
+                    longitude: nearestBeach.coordinate.longitude,
+                    profile: profile,
+                    locationName: nearestBeach.name
+                )
+            } else {
+                let name = await LocationService.shared.reverseGeocode(location: clLocation)
+                let locationName = name.isEmpty ? "Current Location" : name
+
+                try await fetchConditionsInternal(
+                    latitude: clLocation.coordinate.latitude,
+                    longitude: clLocation.coordinate.longitude,
+                    profile: profile,
+                    locationName: locationName
+                )
+            }
+        } catch {
+            errorMessage = "Failed to fetch conditions: \(error.localizedDescription)"
         }
     }
     
     // MARK: - Helpers
+    
+    private func fetchConditions(
+        latitude: Double,
+        longitude: Double,
+        profile: UserProfile,
+        locationName: String
+    ) async {
+        isLoading = true
+        errorMessage = nil
+        defer { isLoading = false }
+        
+        do {
+            try await fetchConditionsInternal(
+                latitude: latitude,
+                longitude: longitude,
+                profile: profile,
+                locationName: locationName
+            )
+        } catch {
+            errorMessage = "Failed to fetch conditions: \(error.localizedDescription)"
+        }
+    }
+    
+    private func fetchConditionsInternal(
+        latitude: Double,
+        longitude: Double,
+        profile: UserProfile,
+        locationName: String
+    ) async throws {
+        currentLocationName = locationName
+        
+        async let conditionsTask = apiService.fetchConditions(
+            latitude: latitude,
+            longitude: longitude
+        )
+        async let forecastTask = apiService.fetchForecast(
+            latitude: latitude,
+            longitude: longitude
+        )
+        
+        let (conditions, hourlyForecast) = try await (conditionsTask, forecastTask)
+        
+        currentConditions = conditions
+        forecast = hourlyForecast
+        currentScore = ScoringService.calculateScore(conditions: conditions, profile: profile)
+        optimalWindow = ScoringService.findOptimalWindow(forecast: hourlyForecast, profile: profile)
+        lastUpdated = Date()
+        isOffline = false
+    }
     
     var lastUpdatedString: String {
         guard let lastUpdated else { return "Never" }

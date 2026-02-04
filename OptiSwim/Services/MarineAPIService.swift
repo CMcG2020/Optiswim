@@ -48,10 +48,9 @@ actor MarineAPIService {
         components.queryItems = [
             URLQueryItem(name: "latitude", value: String(latitude)),
             URLQueryItem(name: "longitude", value: String(longitude)),
-            URLQueryItem(name: "hourly", value: "wave_height,wave_direction,wave_period,swell_wave_height,sea_level_height,sea_surface_temperature"),
+            URLQueryItem(name: "hourly", value: "wave_height,wave_direction,wave_period,swell_wave_height,sea_level_height_msl,sea_surface_temperature"),
             URLQueryItem(name: "forecast_days", value: String(days)),
             URLQueryItem(name: "timezone", value: "UTC"),
-            URLQueryItem(name: "temperature_unit", value: "celsius")
         ]
 
         let (data, response) = try await session.data(from: components.url!)
@@ -93,6 +92,7 @@ actor MarineAPIService {
             URLQueryItem(name: "latitude", value: String(latitude)),
             URLQueryItem(name: "longitude", value: String(longitude)),
             URLQueryItem(name: "hourly", value: "temperature_2m,weather_code,wind_speed_10m,wind_direction_10m,wind_gusts_10m,precipitation,uv_index"),
+            URLQueryItem(name: "daily", value: "sunrise,sunset"),
             URLQueryItem(name: "forecast_days", value: String(days)),
             URLQueryItem(name: "timezone", value: "UTC"),
             URLQueryItem(name: "wind_speed_unit", value: "kmh"),
@@ -161,6 +161,7 @@ actor MarineAPIService {
         }
 
         let marineTimes = parseDates(marineHourly.time ?? [])
+        let daylightWindows = buildDaylightWindows(daily: weather.daily)
         let count = min(
             marineTimes.count,
             marineHourly.waveHeight?.count ?? 0,
@@ -176,8 +177,15 @@ actor MarineAPIService {
                 index: index
             )
 
+            let timestamp = marineTimes[index]
+            let isDaylight: Bool? = daylightWindows.isEmpty
+                ? nil
+                : daylightWindows.contains { window in
+                    timestamp >= window.sunrise && timestamp <= window.sunset
+                }
+
             let conditions = MarineConditions(
-                timestamp: marineTimes[index],
+                timestamp: timestamp,
                 waveHeight: marineHourly.waveHeight?[index] ?? 0,
                 waveDirection: marineHourly.waveDirection?[index] ?? 0,
                 wavePeriod: marineHourly.wavePeriod?[index] ?? 0,
@@ -195,7 +203,7 @@ actor MarineAPIService {
                 sourceUpdateTime: nil
             )
 
-            forecasts.append(HourlyForecast(timestamp: marineTimes[index], conditions: conditions))
+            forecasts.append(HourlyForecast(timestamp: timestamp, conditions: conditions, isDaylight: isDaylight))
         }
 
         return forecasts
@@ -212,6 +220,20 @@ actor MarineAPIService {
 
         return values.compactMap { value in
             isoFormatter.date(from: value) ?? fallback.date(from: value)
+        }
+    }
+
+    private func buildDaylightWindows(daily: WeatherAPIResponse.WeatherDaily?) -> [(sunrise: Date, sunset: Date)] {
+        guard let daily else { return [] }
+
+        let sunrises = parseDates(daily.sunrise ?? [])
+        let sunsets = parseDates(daily.sunset ?? [])
+        let count = min(sunrises.count, sunsets.count)
+
+        guard count > 0 else { return [] }
+
+        return (0..<count).map { index in
+            (sunrise: sunrises[index], sunset: sunsets[index])
         }
     }
 
@@ -292,7 +314,7 @@ struct MarineAPIResponse: Codable {
             case waveDirection = "wave_direction"
             case wavePeriod = "wave_period"
             case swellWaveHeight = "swell_wave_height"
-            case seaLevelHeight = "sea_level_height"
+            case seaLevelHeight = "sea_level_height_msl"
             case seaSurfaceTemperature = "sea_surface_temperature"
         }
     }
@@ -301,6 +323,7 @@ struct MarineAPIResponse: Codable {
 struct WeatherAPIResponse: Codable {
     let current: WeatherCurrent?
     let hourly: WeatherHourly?
+    let daily: WeatherDaily?
 
     struct WeatherCurrent: Codable {
         let time: String?
@@ -343,6 +366,18 @@ struct WeatherAPIResponse: Codable {
             case windGusts10m = "wind_gusts_10m"
             case precipitation
             case uvIndex = "uv_index"
+        }
+    }
+
+    struct WeatherDaily: Codable {
+        let time: [String]?
+        let sunrise: [String]?
+        let sunset: [String]?
+
+        enum CodingKeys: String, CodingKey {
+            case time
+            case sunrise
+            case sunset
         }
     }
 }

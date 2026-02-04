@@ -196,6 +196,13 @@ struct HourlyForecast: Codable, Identifiable {
     var id: Date { timestamp }
     let timestamp: Date
     let conditions: MarineConditions
+    let isDaylight: Bool?
+
+    init(timestamp: Date, conditions: MarineConditions, isDaylight: Bool? = nil) {
+        self.timestamp = timestamp
+        self.conditions = conditions
+        self.isDaylight = isDaylight
+    }
 }
 
 // MARK: - Cached Conditions

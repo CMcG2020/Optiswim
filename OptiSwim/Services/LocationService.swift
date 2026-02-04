@@ -101,6 +101,39 @@ final class LocationService: NSObject {
         
         return item.location
     }
+
+    nonisolated func findNearestBeach(near location: CLLocation) async -> (name: String, coordinate: CLLocationCoordinate2D)? {
+        let request = MKLocalSearch.Request()
+        request.naturalLanguageQuery = "beach"
+        request.resultTypes = .pointOfInterest
+        request.region = MKCoordinateRegion(
+            center: location.coordinate,
+            latitudinalMeters: 50000,
+            longitudinalMeters: 50000
+        )
+
+        let search = MKLocalSearch(request: request)
+
+        do {
+            let response = try await search.start()
+            let candidates = response.mapItems.map { item -> (MKMapItem, CLLocation) in
+                let itemLocation = item.location
+                return (item, itemLocation)
+            }
+
+            guard let nearest = candidates.min(by: { lhs, rhs in
+                lhs.1.distance(from: location) < rhs.1.distance(from: location)
+            }) else {
+                return nil
+            }
+
+            let name = nearest.0.name ?? "Nearby Beach"
+            return (name, nearest.1.coordinate)
+        } catch {
+            print("Nearest beach search error: \(error)")
+            return nil
+        }
+    }
 }
 
 // MARK: - CLLocationManagerDelegate

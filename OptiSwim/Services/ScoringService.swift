@@ -99,9 +99,9 @@ struct ScoringService {
         guard forecast.count >= 2 else { return nil }
         
         // Score each hour
-        let scores = forecast.map { hour -> (Date, Double) in
+        let scores = forecast.map { hour -> (Date, Double, Bool) in
             let score = calculateScore(conditions: hour.conditions, profile: profile)
-            return (hour.timestamp, score.value)
+            return (hour.timestamp, score.value, hour.isDaylight == true)
         }
         
         // Find the best consecutive window
@@ -112,6 +112,8 @@ struct ScoringService {
         
         for i in 0..<(scores.count - minHours + 1) {
             let windowScores = scores[i..<(i + minHours)]
+            let isDaylightWindow = windowScores.allSatisfy { $0.2 }
+            guard isDaylightWindow else { continue }
             let averageScore = windowScores.map { $0.1 }.reduce(0, +) / Double(minHours)
             
             // Only consider windows with good scores (>= 60)
