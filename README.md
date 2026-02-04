@@ -10,6 +10,15 @@ OptiSwim is an iOS and Android app that scores open-water swim conditions using 
 - Local notifications for daily checks and optimal windows
 - On-device caching to reduce repeat network calls
 
+## Screenshots
+| Home (Light) | Home (Dark) | Locations |
+| --- | --- | --- |
+| ![Home light](docs/screenshots/home-light.png) | ![Home dark](docs/screenshots/home-dark.png) | ![Locations](docs/screenshots/locations.png) |
+
+| Conditions & Forecast | Settings (Dark) |
+| --- | --- |
+| ![Conditions](docs/screenshots/conditions.png) | ![Settings dark](docs/screenshots/settings-dark.png) |
+
 ## How It Works
 OptiSwim combines marine (waves, swell) and weather (wind, temperature, UV, weather code) data into a single score. Profiles control thresholds and weights by experience level, and safety warnings override scores when conditions are risky.
 
