@@ -2,6 +2,7 @@ import SwiftUI
 import SwiftData
 
 struct HomeView: View {
+    @Binding var selectedLocation: SwimLocation?
     @Environment(\.modelContext) private var modelContext
     @Query private var profiles: [UserProfile]
     @Query(filter: #Predicate<SwimLocation> { $0.isFavorite }, sort: \SwimLocation.name)
@@ -106,6 +107,13 @@ struct HomeView: View {
                     showingOnboarding = true
                 }
             }
+            .onChange(of: selectedLocation?.id) { _, _ in
+                guard let location = selectedLocation else { return }
+                Task {
+                    await viewModel.fetchConditions(for: location, profile: profile)
+                    selectedLocation = nil
+                }
+            }
             .sheet(isPresented: $showingOnboarding) {
                 OnboardingView()
             }
@@ -139,7 +147,7 @@ struct HomeView: View {
         }
         
         if locationService.isAuthorized {
-            await viewModel.fetchConditionsForCurrentLocation(profile: profile)
+            await viewModel.fetchConditionsForNearestBeach(profile: profile)
         } else if locationService.authorizationStatus == .denied ||
                   locationService.authorizationStatus == .restricted {
             showingLocationAlert = true
@@ -488,7 +496,7 @@ struct ForecastChartCard: View {
                 .frame(height: 140)
 
             if let maxValue = values.max(), let minValue = values.min() {
-                Text("Range: \(String(format: \"%.1f\", minValue))m - \(String(format: \"%.1f\", maxValue))m")
+                Text("Range: \(String(format: "%.1f", minValue))m - \(String(format: "%.1f", maxValue))m")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -763,6 +771,6 @@ struct OnboardingView: View {
 }
 
 #Preview {
-    HomeView()
+    HomeView(selectedLocation: .constant(nil))
         .modelContainer(for: [SwimLocation.self, UserProfile.self], inMemory: true)
 }
