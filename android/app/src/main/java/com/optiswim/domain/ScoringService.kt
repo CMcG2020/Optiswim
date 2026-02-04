@@ -2,11 +2,15 @@ package com.optiswim.domain
 
 import com.optiswim.data.model.ConditionThresholds
 import com.optiswim.data.model.FactorWeights
+import com.optiswim.data.model.HourlyForecast
 import com.optiswim.data.model.MarineConditions
 import com.optiswim.data.model.ScoreRating
 import com.optiswim.data.model.SwimScore
 import com.optiswim.data.model.SwimmerLevel
 import com.optiswim.data.model.TidePreference
+import com.optiswim.data.model.TimeWindow
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 
 object DefaultProfiles {
     fun thresholds(level: SwimmerLevel): ConditionThresholds = when (level) {
@@ -28,6 +32,7 @@ object ScoringService {
     private const val ABSOLUTE_MIN_TEMP = 5.0
     private const val ABSOLUTE_MAX_WAVE = 2.0
     private const val ABSOLUTE_MAX_WIND = 50.0
+    private val TimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm")
 
     fun calculateScore(conditions: MarineConditions, level: SwimmerLevel): SwimScore {
         val thresholds = DefaultProfiles.thresholds(level)
@@ -65,6 +70,60 @@ object ScoringService {
         }
 
         return SwimScore(finalScore, rating, warnings(conditions, thresholds))
+    }
+
+    fun findOptimalWindow(
+        forecast: List<HourlyForecast>,
+        level: SwimmerLevel,
+        minDurationHours: Int = 2
+    ): TimeWindow? {
+        if (forecast.size < minDurationHours) return null
+
+        val scored = forecast.mapNotNull { hour ->
+            val timestamp = parseTimestamp(hour.timestamp) ?: return@mapNotNull null
+            val score = calculateScore(
+                conditions = MarineConditions(
+                    timestamp = hour.timestamp,
+                    waveHeight = hour.waveHeight,
+                    waveDirection = hour.waveDirection,
+                    wavePeriod = hour.wavePeriod,
+                    swellHeight = hour.swellHeight,
+                    seaLevelHeight = hour.seaLevelHeight,
+                    seaSurfaceTemperature = hour.seaSurfaceTemperature,
+                    windSpeed = hour.windSpeed,
+                    windGusts = hour.windGusts,
+                    windDirection = hour.windDirection,
+                    airTemperature = hour.airTemperature,
+                    uvIndex = hour.uvIndex,
+                    precipitation = hour.precipitation,
+                    weatherCode = hour.weatherCode,
+                    tidePhase = hour.tidePhase,
+                    sourceUpdateTime = hour.sourceUpdateTime
+                ),
+                level = level
+            )
+            Triple(timestamp, score.value, hour.isDaylight == true)
+        }
+
+        if (scored.size < minDurationHours) return null
+
+        var bestWindow: TimeWindow? = null
+        var bestAverage = 0.0
+
+        for (i in 0..(scored.size - minDurationHours)) {
+            val window = scored.subList(i, i + minDurationHours)
+            if (!window.all { it.third }) continue
+
+            val average = window.sumOf { it.second } / minDurationHours
+            if (average >= 60 && average > bestAverage) {
+                bestAverage = average
+                val start = window.first().first
+                val end = window.last().first.plusHours(1)
+                bestWindow = TimeWindow(start = start, end = end, averageScore = average)
+            }
+        }
+
+        return bestWindow
     }
 
     private fun tempScore(temp: Double, thresholds: ConditionThresholds): Double = when {
@@ -140,5 +199,10 @@ object ScoringService {
 
     private fun isOnshore(direction: Double): Boolean {
         return direction in 180.0..360.0
+    }
+
+    private fun parseTimestamp(value: String?): LocalDateTime? {
+        if (value.isNullOrBlank()) return null
+        return runCatching { LocalDateTime.parse(value, TimeFormatter) }.getOrNull()
     }
 }

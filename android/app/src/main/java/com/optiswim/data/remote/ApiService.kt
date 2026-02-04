@@ -19,6 +19,7 @@ interface WeatherApiService {
         @Query("latitude") lat: Double,
         @Query("longitude") lon: Double,
         @Query("hourly") hourly: String = "temperature_2m,weather_code,wind_speed_10m,wind_direction_10m,wind_gusts_10m,precipitation,uv_index",
+        @Query("daily") daily: String = "sunrise,sunset",
         @Query("forecast_days") days: Int = 7,
         @Query("timezone") timezone: String = "UTC",
         @Query("wind_speed_unit") windSpeedUnit: String = "kmh",
@@ -31,9 +32,8 @@ interface MarineApiService {
     suspend fun getHourly(
         @Query("latitude") lat: Double,
         @Query("longitude") lon: Double,
-        @Query("hourly") hourly: String = "wave_height,wave_direction,wave_period,swell_wave_height,sea_level_height,sea_surface_temperature",
+        @Query("hourly") hourly: String = "wave_height,wave_direction,wave_period,swell_wave_height,sea_level_height_msl,sea_surface_temperature",
         @Query("forecast_days") days: Int = 7,
-        @Query("timezone") timezone: String = "UTC",
-        @Query("temperature_unit") temperatureUnit: String = "celsius"
+        @Query("timezone") timezone: String = "UTC"
     ): MarineResponse
 }

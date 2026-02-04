@@ -15,8 +15,9 @@ class LocationProvider @Inject constructor(
 
     @SuppressLint("MissingPermission")
     suspend fun getCurrentLocation(): LocationResult? {
-        val location = client.getCurrentLocation(Priority.PRIORITY_BALANCED_POWER_ACCURACY, null).await()
-        return location?.let { LocationResult(it.latitude, it.longitude) }
+        return runCatching {
+            client.getCurrentLocation(Priority.PRIORITY_BALANCED_POWER_ACCURACY, null).await()
+        }.getOrNull()?.let { LocationResult(it.latitude, it.longitude) }
     }
 }
 

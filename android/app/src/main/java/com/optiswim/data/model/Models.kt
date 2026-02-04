@@ -4,6 +4,7 @@ import androidx.room.Entity
 import androidx.room.PrimaryKey
 import com.squareup.moshi.Json
 import com.squareup.moshi.JsonClass
+import java.time.LocalDateTime
 
 @JsonClass(generateAdapter = true)
 data class MarineConditions(
@@ -42,7 +43,8 @@ data class HourlyForecast(
     val precipitation: Double,
     val weatherCode: Int,
     val tidePhase: String? = null,
-    val sourceUpdateTime: String? = null
+    val sourceUpdateTime: String? = null,
+    val isDaylight: Boolean? = null
 )
 
 
@@ -90,6 +92,12 @@ data class FactorWeights(
     val tide: Double
 )
 
+data class SelectedLocation(
+    val name: String,
+    val latitude: Double,
+    val longitude: Double
+)
+
 sealed class ScoreRating(val label: String) {
     data object Excellent : ScoreRating("Excellent")
     data object Good : ScoreRating("Good")
@@ -102,4 +110,10 @@ data class SwimScore(
     val value: Double,
     val rating: ScoreRating,
     val warnings: List<String>
+)
+
+data class TimeWindow(
+    val start: LocalDateTime,
+    val end: LocalDateTime,
+    val averageScore: Double
 )

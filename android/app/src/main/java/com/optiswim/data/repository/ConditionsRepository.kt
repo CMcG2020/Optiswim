@@ -47,8 +47,9 @@ class ConditionsRepository @Inject constructor(
 
         val tidePhase = computeTidePhase(marineTimes, marineHourly?.seaLevelHeight ?: emptyList(), index)
 
-        val timestamp = marineTimes.getOrNull(index)?.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
-            ?: LocalDateTime.now(ZoneOffset.UTC).format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
+        val timestampFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm")
+        val timestamp = marineTimes.getOrNull(index)?.format(timestampFormatter)
+            ?: LocalDateTime.now(ZoneOffset.UTC).format(timestampFormatter)
 
         return MarineConditions(
             timestamp = timestamp,
@@ -76,6 +77,7 @@ class ConditionsRepository @Inject constructor(
 
         val marineHourly = marine?.hourly
         val weatherHourly = weather.hourly
+        val daylightWindows = buildDaylightWindows(weather.daily)
 
         val marineTimes = parseTimes(marineHourly?.time ?: weatherHourly?.time)
         val marineSize = marineHourly?.waveHeight?.size ?: Int.MAX_VALUE
@@ -89,10 +91,13 @@ class ConditionsRepository @Inject constructor(
         val forecasts = mutableListOf<HourlyForecast>()
         for (i in 0 until count) {
             val tidePhase = computeTidePhase(marineTimes, marineHourly?.seaLevelHeight ?: emptyList(), i)
-            val timestamp = marineTimes[i].format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
+            val timestamp = marineTimes[i]
+            val isDaylight = daylightWindows.takeIf { it.isNotEmpty() }?.any { window ->
+                !timestamp.isBefore(window.first) && !timestamp.isAfter(window.second)
+            }
             forecasts.add(
                 HourlyForecast(
-                    timestamp = timestamp,
+                    timestamp = timestamp.format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm")),
                     waveHeight = marineHourly?.waveHeight?.getOrNull(i) ?: 0.0,
                     waveDirection = marineHourly?.waveDirection?.getOrNull(i) ?: 0.0,
                     wavePeriod = marineHourly?.wavePeriod?.getOrNull(i) ?: 0.0,
@@ -107,7 +112,8 @@ class ConditionsRepository @Inject constructor(
                     precipitation = weatherHourly?.precipitation?.getOrNull(i) ?: 0.0,
                     weatherCode = weatherHourly?.weatherCode?.getOrNull(i) ?: 0,
                     tidePhase = tidePhase,
-                    sourceUpdateTime = null
+                    sourceUpdateTime = null,
+                    isDaylight = isDaylight
                 )
             )
         }
@@ -121,6 +127,15 @@ class ConditionsRepository @Inject constructor(
         return values.mapNotNull {
             runCatching { LocalDateTime.parse(it, formatter) }.getOrNull()
         }
+    }
+
+    private fun buildDaylightWindows(daily: com.optiswim.data.remote.WeatherDaily?): List<Pair<LocalDateTime, LocalDateTime>> {
+        if (daily == null) return emptyList()
+        val sunrises = parseTimes(daily.sunrise)
+        val sunsets = parseTimes(daily.sunset)
+        val count = minOf(sunrises.size, sunsets.size)
+        if (count == 0) return emptyList()
+        return (0 until count).map { index -> sunrises[index] to sunsets[index] }
     }
 
     private fun nearestIndex(times: List<LocalDateTime>, target: LocalDateTime): Int {

@@ -17,12 +17,19 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.Card
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -30,6 +37,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -79,118 +87,137 @@ fun SettingsScreen(padding: PaddingValues, viewModel: SettingsViewModel) {
         }
     }
 
-    Column(
+    LazyColumn(
         modifier = Modifier
             .fillMaxSize()
             .padding(padding)
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Text(text = "Settings", style = MaterialTheme.typography.titleMedium)
-
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text(text = "Swimmer Profile", style = MaterialTheme.typography.titleSmall)
-                Spacer(modifier = Modifier.height(8.dp))
-                Box {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { expanded = true },
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(text = level.label)
-                        Text(text = "Change")
-                    }
-                    DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                        SwimmerLevel.values().forEach { option ->
-                            DropdownMenuItem(
-                                text = { Text(option.label) },
-                                onClick = {
-                                    viewModel.updateLevel(option)
-                                    expanded = false
-                                }
-                            )
-                        }
-                    }
-                }
-            }
+        item {
+            Text(text = "Settings", style = MaterialTheme.typography.titleMedium)
         }
 
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text(text = "Daily Alerts")
-                    Switch(checked = dailyAlerts, onCheckedChange = { enabled ->
-                        if (enabled) {
-                            val needsNotificationPermission = Build.VERSION.SDK_INT >= 33 &&
-                                !hasPermission(context, Manifest.permission.POST_NOTIFICATIONS)
-                            if (needsNotificationPermission) {
-                                notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                            } else {
-                                enableAlerts(viewModel, context)
+        item {
+            SectionHeader(icon = Icons.Filled.Person, title = "Swimmer Profile")
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Box {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { expanded = true },
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(text = level.label)
+                            Text(text = "Change")
+                        }
+                        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                            SwimmerLevel.values().forEach { option ->
+                                DropdownMenuItem(
+                                    text = { Text(option.label) },
+                                    onClick = {
+                                        viewModel.updateLevel(option)
+                                        expanded = false
+                                    }
+                                )
                             }
-                        } else {
-                            viewModel.setDailyAlerts(false)
-                            AlertScheduler.cancelAll(context)
                         }
-                    })
+                    }
                 }
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(text = "Safety alerts are managed by background tasks.")
             }
         }
 
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text(text = "Use Current Location for Alerts")
-                    Switch(
-                        checked = useCurrentLocationAlerts,
-                        onCheckedChange = { enabled ->
+        item {
+            SectionHeader(icon = Icons.Filled.Notifications, title = "Notifications")
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text(text = "Daily Alerts")
+                        Switch(checked = dailyAlerts, onCheckedChange = { enabled ->
                             if (enabled) {
-                                val hasForeground = hasPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) ||
-                                    hasPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION)
-                                if (!hasForeground) {
-                                    locationLauncher.launch(
-                                        arrayOf(
-                                            Manifest.permission.ACCESS_FINE_LOCATION,
-                                            Manifest.permission.ACCESS_COARSE_LOCATION
-                                        )
-                                    )
-                                    return@Switch
-                                }
-                                if (Build.VERSION.SDK_INT >= 29 &&
-                                    !hasPermission(context, Manifest.permission.ACCESS_BACKGROUND_LOCATION)
-                                ) {
-                                    backgroundLocationLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+                                val needsNotificationPermission = Build.VERSION.SDK_INT >= 33 &&
+                                    !hasPermission(context, Manifest.permission.POST_NOTIFICATIONS)
+                                if (needsNotificationPermission) {
+                                    notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                                 } else {
-                                    viewModel.setUseCurrentLocationAlerts(true)
-                                    permissionMessage = null
+                                    enableAlerts(viewModel, context)
                                 }
                             } else {
-                                viewModel.setUseCurrentLocationAlerts(false)
+                                viewModel.setDailyAlerts(false)
+                                AlertScheduler.cancelAll(context)
                             }
-                        }
-                    )
+                        })
+                    }
+                    Text(text = "Safety alerts are managed by background tasks.")
                 }
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(text = "Enable background location to use current GPS in alerts.")
+            }
+        }
+
+        item {
+            SectionHeader(icon = Icons.Filled.LocationOn, title = "Location Alerts")
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text(text = "Use Current Location")
+                        Switch(
+                            checked = useCurrentLocationAlerts,
+                            onCheckedChange = { enabled ->
+                                if (enabled) {
+                                    val hasForeground = hasPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) ||
+                                        hasPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION)
+                                    if (!hasForeground) {
+                                        locationLauncher.launch(
+                                            arrayOf(
+                                                Manifest.permission.ACCESS_FINE_LOCATION,
+                                                Manifest.permission.ACCESS_COARSE_LOCATION
+                                            )
+                                        )
+                                        return@Switch
+                                    }
+                                    if (Build.VERSION.SDK_INT >= 29 &&
+                                        !hasPermission(context, Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+                                    ) {
+                                        backgroundLocationLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+                                    } else {
+                                        viewModel.setUseCurrentLocationAlerts(true)
+                                        permissionMessage = null
+                                    }
+                                } else {
+                                    viewModel.setUseCurrentLocationAlerts(false)
+                                }
+                            }
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(text = "Enable background location to use current GPS in alerts.")
+                }
             }
         }
 
         if (permissionMessage != null) {
-            Text(text = permissionMessage ?: "", color = MaterialTheme.colorScheme.error)
-        }
-
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text(text = "Data Sources", style = MaterialTheme.typography.titleSmall)
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(text = "Open-Meteo Marine")
-                Text(text = "Open-Meteo Weather")
+            item {
+                Text(text = permissionMessage ?: "", color = MaterialTheme.colorScheme.error)
             }
         }
+
+        item {
+            SectionHeader(icon = Icons.Filled.Info, title = "Data Sources")
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(text = "Open-Meteo Marine")
+                    Text(text = "Open-Meteo Weather")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SectionHeader(icon: androidx.compose.ui.graphics.vector.ImageVector, title: String) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Icon(imageVector = icon, contentDescription = null)
+        Text(text = title, style = MaterialTheme.typography.titleSmall)
     }
 }
 

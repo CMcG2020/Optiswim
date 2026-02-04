@@ -6,7 +6,8 @@ import com.squareup.moshi.JsonClass
 @JsonClass(generateAdapter = true)
 data class WeatherResponse(
     val current: WeatherCurrent? = null,
-    val hourly: WeatherHourly? = null
+    val hourly: WeatherHourly? = null,
+    val daily: WeatherDaily? = null
 )
 
 @JsonClass(generateAdapter = true)
@@ -34,6 +35,13 @@ data class WeatherHourly(
 )
 
 @JsonClass(generateAdapter = true)
+data class WeatherDaily(
+    val time: List<String>? = null,
+    val sunrise: List<String>? = null,
+    val sunset: List<String>? = null
+)
+
+@JsonClass(generateAdapter = true)
 data class MarineResponse(
     val hourly: MarineHourly? = null
 )
@@ -45,6 +53,6 @@ data class MarineHourly(
     @Json(name = "wave_direction") val waveDirection: List<Double>? = null,
     @Json(name = "wave_period") val wavePeriod: List<Double>? = null,
     @Json(name = "swell_wave_height") val swellWaveHeight: List<Double>? = null,
-    @Json(name = "sea_level_height") val seaLevelHeight: List<Double>? = null,
+    @Json(name = "sea_level_height_msl") val seaLevelHeight: List<Double>? = null,
     @Json(name = "sea_surface_temperature") val seaSurfaceTemperature: List<Double>? = null
 )
